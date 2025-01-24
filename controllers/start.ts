@@ -8,6 +8,7 @@ const jwtSecret = process.env.JWT_SECRET;
 
 import { totp } from "otplib";
 import mongoose, { Mongoose } from "mongoose";
+import { log } from "console";
 totp.options = { step: 30 };
 const salt = crypto.randomBytes(16).toString("hex");
 
@@ -22,7 +23,7 @@ export const registerUser = async (req: any, res: any) => {
     await UserDB.create({
       email,
       password: cryptedPass,
-      salt,
+      passwordSalt: salt,
     });
     return res.send({ code: 200, message: "Registeration successfull!!" });
   } catch (err: any) {
@@ -39,11 +40,11 @@ export const userLogin = async (req: any, res: any) => {
     const { email, GivenPassword } = req.body;
     let userData = await UserDB.findOne({ email: email });
     if (!userData) return res.send({ code: 400, message: "User not found!" });
-    const { salt, encryptedPassword } = userData;
-    if (!salt || !encryptedPassword) {
+    const { passwordSalt, encryptedPassword } = userData;
+    if (!passwordSalt || !encryptedPassword) {
       return res.send({ code: 400, message: "Data not found!" });
     }
-    const hash = hashPass(String(GivenPassword), salt);
+    const hash = hashPass(String(GivenPassword), passwordSalt);
     if (hash !== encryptedPassword)
       return res.send({
         code: 400,
@@ -109,13 +110,18 @@ export const verifyOTP = async (req: any, res: any) => {
     const { otp, email, appName } = req.body;
     const userFound = await UserDB.findOne({ email: email });
     if (!userFound) return res.send({ code: 400, message: "User not found" });
+    console.log("userFound:", userFound);
     const appDetails = userFound.validationSubCategories.find((app: any) => {
-      app.application == appName;
+      return app.application == appName;
     });
-    if (!appDetails || appDetails.salt)
-      return res.send({ code: 400, message: "Application Details not found!" });
+    console.log("appDetials:::::::::::::", appDetails);
 
-    const saltedOTP = totp.generate(appDetails.salt as string);
+    if (!appDetails || !appDetails.otpSalt) {
+      return res.send({ code: 400, message: "Application Details not found!" });
+    }
+
+    const saltedOTP = totp.generate(appDetails.otpSalt as string);
+    console.log("salted Password:", saltedOTP);
     if (otp == saltedOTP) {
       return res.send({ code: 200, message: "OTP validated successfully!" });
     } else {

@@ -8,7 +8,7 @@ const userSchema = new Schema(
     encryptedPassword: {
       type: String,
     },
-    salt: {
+    passwordSalt: {
       type: String,
     },
     validationSubCategories: [
@@ -16,7 +16,7 @@ const userSchema = new Schema(
         application: {
           type: String,
         },
-        salt: {
+        otpSalt: {
           type: String,
         },
       },
