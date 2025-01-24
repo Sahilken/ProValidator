@@ -102,10 +102,20 @@ export const sseEvent = async (req: any, res: any) => {
     res.end();
   });
 };
+
+//other applications will integrate this api to verify otp
 export const verifyOTP = async (req: any, res: any) => {
   try {
-    const { otp } = req.body;
-    const saltedOTP = totp.generate(salt);
+    const { otp, email, appName } = req.body;
+    const userFound = await UserDB.findOne({ email: email });
+    if (!userFound) return res.send({ code: 400, message: "User not found" });
+    const appDetails = userFound.validationSubCategories.find((app: any) => {
+      app.application == appName;
+    });
+    if (!appDetails || appDetails.salt)
+      return res.send({ code: 400, message: "Application Details not found!" });
+
+    const saltedOTP = totp.generate(appDetails.salt as string);
     if (otp == saltedOTP) {
       return res.send({ code: 200, message: "OTP validated successfully!" });
     } else {
