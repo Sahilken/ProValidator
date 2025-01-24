@@ -3,6 +3,9 @@ import cluster from "cluster";
 import { availableParallelism } from "os";
 import process from "process";
 import mongoose from "mongoose";
+import { WebSocket, WebSocketServer } from "ws";
+const wss = new WebSocketServer({ port: 8080 });
+
 const numCPUs = availableParallelism();
 const app = express();
 app.use(express.json());
@@ -47,6 +50,21 @@ mongoose
 const { otp, expires } = TOTP.generate("ASWDEQVGRSDBQZTY");
 // console.log(otp);
 // console.log("Expires at:", new Date(expires));
+
+//Websocket
+wss.on("connection", (ws: WebSocket) => {
+  console.log("Client connected");
+
+  //incoming
+  ws.on("message", (message: string) => {
+    console.log(`Received: ${message}`);
+    ws.send(`Server received: ${message}`);
+  });
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
+  ws.send("Welcome to the WebSocket server!");
+});
 
 app.listen(port, () => {
   console.log(`Server started at ${port}`);

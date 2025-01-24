@@ -5,17 +5,22 @@ const userSchema = new Schema(
     email: {
       type: String,
     },
-    password: {
+    encryptedPassword: {
       type: String,
     },
     salt: {
       type: String,
     },
-    // validationSubCategories:[
-    //     {
-    //         appl
-    //     }
-    // ]
+    validationSubCategories: [
+      {
+        application: {
+          type: String,
+        },
+        salt: {
+          type: String,
+        },
+      },
+    ],
   },
   { timestamps: true }
 );

@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 const jwtSecret = process.env.JWT_SECRET;
 
 import { totp } from "otplib";
+import mongoose, { Mongoose } from "mongoose";
 totp.options = { step: 30 };
 const salt = crypto.randomBytes(16).toString("hex");
 
@@ -38,12 +39,12 @@ export const userLogin = async (req: any, res: any) => {
     const { email, GivenPassword } = req.body;
     let userData = await UserDB.findOne({ email: email });
     if (!userData) return res.send({ code: 400, message: "User not found!" });
-    const { salt, password } = userData;
-    if (!salt || !password) {
+    const { salt, encryptedPassword } = userData;
+    if (!salt || !encryptedPassword) {
       return res.send({ code: 400, message: "Data not found!" });
     }
     const hash = hashPass(String(GivenPassword), salt);
-    if (hash !== password)
+    if (hash !== encryptedPassword)
       return res.send({
         code: 400,
         message: "Please Provide correct Password!",
@@ -65,17 +66,37 @@ export const userLogin = async (req: any, res: any) => {
     return res.send({ code: 500, message: "ISE" });
   }
 };
+
 export const sseEvent = async (req: any, res: any) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  const sendPasscode = () => {
-    const passCode = totp.generate(salt);
-    res.write(`data:${JSON.stringify({ passCode })}\n\n`);
+  let userId = new mongoose.Types.ObjectId("6793270bbec238057a361408");
+  const foundUser = await UserDB.findOne({ _id: userId });
+  if (!foundUser) {
+    return res.send({ code: 400, message: "User not found!" });
+  }
+
+  const sendPasscodes = () => {
+    const applications = foundUser.validationSubCategories;
+
+    const categoryObj: {
+      categoryId: mongoose.Types.ObjectId;
+      otp: string;
+    }[] = [];
+
+    applications.forEach((app: any) => {
+      let obj = {
+        categoryId: app._id,
+        otp: totp.generate(app.salt),
+      };
+      categoryObj.push(obj);
+    });
+    res.write(`data:${JSON.stringify({ categoryObj })}\n\n`);
   };
-  sendPasscode();
-  const interval = setInterval(sendPasscode, 30000);
+  sendPasscodes();
+  const interval = setInterval(sendPasscodes, 30000);
   req.on("close", () => {
     clearInterval(interval);
     res.end();
@@ -92,6 +113,33 @@ export const verifyOTP = async (req: any, res: any) => {
     }
   } catch (err: any) {
     console.error(`Error:${err}`);
+    return res.send({ code: 500, message: "ISE" });
+  }
+};
+export const addValidationSubCategory = async (req: any, res: any) => {
+  try {
+    let userId = new mongoose.Types.ObjectId("6793270bbec238057a361408"); // will be decoded from token
+    console.log("UserId:", userId);
+    const { application } = req.body;
+    console.log("application:", application);
+
+    let foundUser = await UserDB.findOne({ _id: userId });
+    console.log("FoundUser:", foundUser);
+    let applicationSalt = crypto.randomBytes(16).toString("hex");
+    await UserDB.updateOne(
+      { _id: userId },
+      {
+        $push: {
+          validationSubCategories: {
+            application: application,
+            salt: applicationSalt,
+          },
+        },
+      }
+    );
+    return res.send({ code: 200, message: "Application added successfully!" });
+  } catch (err: any) {
+    console.error("Error:", err);
     return res.send({ code: 500, message: "ISE" });
   }
 };
