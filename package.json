@@ -1,11 +1,10 @@
 {
   "name": "propass",
   "version": "1.0.0",
-  "main": "src/app.js",
+  "main": "dist/index.js",
   "scripts": {
-    "build": "npx tsc",
-    "start": "node dist/index.js",
-    "dev": "nodemon server.ts"
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js"
   },
   "author": "",
   "license": "ISC",

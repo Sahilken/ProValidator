@@ -22,7 +22,7 @@ export const registerUser = async (req: any, res: any) => {
     const cryptedPass = hashPass(password, salt);
     await UserDB.create({
       email,
-      password: cryptedPass,
+      encryptedPassword: cryptedPass,
       passwordSalt: salt,
     });
     return res.send({ code: 200, message: "Registeration successfull!!" });
@@ -51,7 +51,7 @@ export const userLogin = async (req: any, res: any) => {
         message: "Please Provide correct Password!",
       });
     if (!jwtSecret) {
-      return res.send("Jwt Secret not defined");
+      return res.send({ code: 400, message: "Jwt Secret not defined" });
     }
 
     const token = jwt.sign({ userId: userData.id }, jwtSecret, {
